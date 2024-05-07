@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top 100 Steel producers</title>
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+    <style>
+    
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            height: 100vh;
+            background-color: #1c87c9;
+        }
+        h1 {
+            position: fixed;
+            top: 0;
+            left: 50%; /* Adjust left positioning to center the h1 horizontally */
+            transform: translateX(-50%); /* Center the h1 horizontally */
+            background-color: #333; /* Background color */
+            color: #fff; /* Text color */
+            padding: 10px 20px; /* Padding */
+            margin: 0; /* Remove default margin */
+            width: 100%; /* Full width */
+            text-align: center; /* Center the text */
+        }
+        
+        #top-right-paragraph {
+            position: fixed;
+            top: 10px; /* Adjust the top position as needed */
+            right: 10px; /* Adjust the right position as needed */
+            background-color: rgb(0, 0, 0);
+            height: 12%; /* Stretch vertically */
+            width: 500px; /* Set a fixed width or adjust as needed */
+            padding: 10px;
+            border: 2px solid #f60808; /* Border color matches the background color of the body */
+            color: red;
+}
+
+        #my_dataviz {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        #country-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 10px;
+            border: 2px solid rgb(16, 209, 239);
+            display: none;
+        }
+
+        #count-info {
+            position: absolute;
+            top: 50px; /* Adjust the position as needed */
+            left: 10px;
+            background-color: white;
+            padding: 10px;
+            border: 2px solid rgb(16, 209, 239);
+            display: none;
+        }
+
+        #slider-container {
+            width: 80%;
+            margin-bottom: 20px;
+        }
+
+        #year-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 20px;
+            background: #e0f006;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+            border-radius: 10px;
+        }
+
+        #year-slider:hover {
+            opacity: 1;
+        }
+
+        #year-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #4caf50;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        #year-slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: #4caf50;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        #year-label {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        #company-table {
+            border: 1px solid black;
+            border-radius: 10px;
+            padding: 10px;
+            background-color: white;
+            display: block;
+            width: 80%;
+            margin: 0 auto;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Create an element where the map will take place -->
+    <canvas id="my_dataviz" width="800" height="500"></canvas>
+
+    <h1>Top 100 Global Steel Producers(2011-2016)</h1>
+
+    <!-- paragraph at the top right-->
+    <div id="top-right-paragraph">Instructions: First, if you hover over the map, you will see the country
+        associated with the cursor and count which represents number of companies that are in this country 
+        which are among the top 100 steel producers. Countries are color coded and darker color represents
+        that country had more companies producing steel. If you click on the country filled with color, you
+        can see all the list of companies in that country that produce steel with the quantity. Slider man
+        be used to see data for other years. </div>
+
+    <!-- Create a div to display country information -->
+    <div id="country-info"></div>
+
+    <!-- Create a div to display the count of companies associated with the country -->
+    <div id="count-info"></div>
+
+    <!-- Slider container -->
+    <div id="slider-container">
+        <input type="range" id="year-slider" min="2011" max="2016" step="1" value="2011">
+        <div id="year-label">Year: 2011</div>
+    </div>
+
+    <!-- Company table container -->
+    <div id="company-table"></div>
+
+    <script>
+        // select the canvas element created in the html.
+        var canvas = document.getElementById('my_dataviz');
+
+        // Actual width and height.
+        var width = canvas.offsetWidth;
+        var height = canvas.offsetHeight;
+
+        // Set a projection for the map.
+        var projection = d3.geoNaturalEarth1()
+            .scale(width / 1.3 / Math.PI)
+            .translate([width / 2, height / 2]);
+
+        // Get the 'context'
+        var ctx = canvas.getContext('2d');
+
+        // geographic path generator for given projection and canvas context
+        const pathGenerator = d3.geoPath(projection, ctx);
+
+        // Object to store company data by country
+        var countryData = {};
+        var totalEarningsByCountry = {};
+        var selectedYear = 2011;
+
+        // Function to calculate total earnings of each country by year
+        function calculateTotalEarningsByYear(csvData) {
+            // Iterate over the CSV data
+            csvData.forEach(function (d) {
+                var country = d["Headquarters"].trim();
+                var years = ["2011", "2012", "2013", "2014", "2015", "2016"]; // Assuming we start with 2011 Tonnage
+                if (country.length == 0) return;
+                // Check if the country exists in totalEarningsByCountry object
+                if (!(country in totalEarningsByCountry)) {
+                    // If not, initialize it as an empty object
+                    totalEarningsByCountry[country] = {};
+                }
+
+                // Calculate total earnings for each year and store it in totalEarningsByCountry object
+                years.forEach(function (year) {
+                    if (typeof totalEarningsByCountry[country][year] !== 'number') {
+                        totalEarningsByCountry[country][year] = 0;
+                    }
+                    totalEarningsByCountry[country][year] += parseFloat(d[year + " Tonnage (Millions)"]) || 0;
+                });
+            })
+
+        }
+
+
+        d3.csv("data.csv", function (csvData) {
+            // Process CSV data and store in countryData object
+            calculateTotalEarningsByYear(csvData);
+            csvData.forEach(function (d) {
+                var country = d["Headquarters"].trim();
+                var companyName = d["Companies"];
+                var years = ["2011", "2012", "2013", "2014", "2015", "2016"]; // Assuming we start with 2011 Tonnage
+
+                if (country.length == 0) return
+
+                // Check if the country exists in countryData object
+                if (!(country in countryData)) {
+                    // If not, initialize it as an empty object
+                    countryData[country] = {};
+                }
+
+                // Check if the companyName exists in countryData[country] object
+                if (!(companyName in countryData[country])) {
+                    // If not, initialize it as an empty object
+                    countryData[country][companyName] = {};
+                }
+
+                // Store production for the year under companyName
+                years.forEach(
+                    year => {
+                        countryData[country][companyName][year] = parseFloat(d[year + " Tonnage (Millions)"]);
+                    }
+                )
+
+            });
+
+            // Log the structured countryData object
+            console.log('Structured countryData:', countryData);
+        });
+
+
+        // Load external data and boot
+        d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson", function (data) {
+            // initialize the path
+            var selectedYear = 2011;
+            console.log('totalEarningsByCountry: ', totalEarningsByCountry)
+
+            var earningsForYear = [];
+            // Iterate over each country and extract earnings for the selected year
+            for (var country in totalEarningsByCountry) {
+                if (totalEarningsByCountry.hasOwnProperty(country)) {
+
+
+                    var earnings = totalEarningsByCountry[country][selectedYear];
+                    if (earnings !== undefined) {
+                        earningsForYear.push(earnings);
+                    }
+                }
+            }
+
+            console.log('earnign for year ', earningsForYear)
+
+            // Find minimum and maximum earnings for the selected year
+            var minEarnings = d3.min(earningsForYear);
+            var maxEarnings = d3.max(earningsForYear);
+
+
+            console.log('maxEarnings ', maxEarnings);
+
+            // Define color scale for the selected year
+            var colorScale = d3.scaleLinear()
+                .domain([minEarnings, maxEarnings])
+                .range(["yellow", "red"]); // Adjust colors as needed
+
+
+
+            // Initialize the path for each country
+            data.features.forEach(function (feature) {
+                ctx.beginPath();
+                pathGenerator(feature);
+                ctx.closePath();
+
+                // Get country name
+                var countryName = feature.properties.name;
+
+
+                // Get total earnings for the selected year and country
+                var totalEarnings = totalEarningsByCountry[countryName] && totalEarningsByCountry[countryName][selectedYear] || 0;
+
+                // Set fill color based on total earnings for the selected year
+                ctx.fillStyle = totalEarnings ? colorScale(totalEarnings) : "#ccc"; // Use default color for countries not in totalEarningsByCountry
+                ctx.fill();
+
+                ctx.strokeStyle = "#69b3a2";
+                ctx.stroke();
+            });
+
+            // Function to update the map based on the selected year
+            function updateMap(year) {
+                selectedYear = year;
+                // Iterate over each country and extract earnings for the selected year
+                earningsForYear = [];
+                for (var country in totalEarningsByCountry) {
+                    if (totalEarningsByCountry.hasOwnProperty(country)) {
+                        var earnings = totalEarningsByCountry[country][selectedYear];
+                        if (earnings !== undefined) {
+                            earningsForYear.push(earnings);
+                        }
+                    }
+                }
+
+                // Find minimum and maximum earnings for the selected year
+                minEarnings = d3.min(earningsForYear);
+                maxEarnings = d3.max(earningsForYear);
+
+                // Update color scale
+                colorScale.domain([minEarnings, maxEarnings]);
+
+                // Clear the canvas
+                ctx.clearRect(0, 0, width, height);
+
+                // Initialize the path for each country
+                data.features.forEach(function (feature) {
+                    ctx.beginPath();
+                    pathGenerator(feature);
+                    ctx.closePath();
+
+                    // Get country name
+                    var countryName = feature.properties.name;
+
+                    // Get total earnings for the selected year and country
+                    var totalEarnings = totalEarningsByCountry[countryName] && totalEarningsByCountry[countryName][selectedYear] || 0;
+
+                    // Set fill color based on total earnings for the selected year
+                    ctx.fillStyle = totalEarnings ? colorScale(totalEarnings) : "#ccc"; // Use default color for countries not in totalEarningsByCountry
+                    ctx.fill();
+
+                    ctx.strokeStyle = "#69b3a2";
+                    ctx.stroke();
+                });
+
+                // Update the year label
+                updateYearLabel(selectedYear);
+            }
+
+            // Function to update the year label
+            function updateYearLabel(year) {
+                document.getElementById("year-label").textContent = "Year: " + year;
+            }
+
+            // Add event listener for mouse click
+            canvas.addEventListener('click', handleMouseClick);
+            // Add event listeners
+            canvas.addEventListener('mousemove', handleMouseMove);
+
+            // Add an event listener to the slider to update the selectedYear variable when the slider value changes
+            document.getElementById("year-slider").addEventListener("input", function () {
+                selectedYear = parseInt(this.value);
+                console.log('selectedYear: ', selectedYear);
+                // Call the updateMap function with the new selected year
+                updateMap(selectedYear);
+            });
+
+            // Function to handle mouse move event
+            function handleMouseMove(event) {
+                var x = event.offsetX;
+                var y = event.offsetY;
+                // Check which country is hovered over
+                data.features.forEach(function (feature) {
+                    ctx.beginPath();
+                    pathGenerator(feature);
+                    ctx.closePath();
+                    var isInside = ctx.isPointInPath(x, y);
+                    if (isInside) {
+                        // Display country information
+                        var countryName = feature.properties.name;
+                        document.getElementById("country-info").innerHTML = "Country: " + countryName;
+
+                        // Calculate the count of companies associated with the country
+                        var companyCount = getCompanyCountForCountry(countryName);
+                        document.getElementById("count-info").innerHTML = "Companies Count: " + companyCount;
+
+                        // Make both country-info and count-info elements visible
+                        document.getElementById("country-info").style.display = "block";
+                        document.getElementById("count-info").style.display = "block";
+                    }
+                });
+            }
+
+            // Function to calculate the count of companies associated with a given country
+            function getCompanyCountForCountry(countryName) {
+                var count = 0;
+                if (countryData.hasOwnProperty(countryName)) {
+                    for (var companyName in countryData[countryName]) {
+                        if (countryData[countryName].hasOwnProperty(companyName)) {
+                            count++;
+                        }
+                    }
+                }
+                return count;
+            }
+
+            // Function to handle mouse click event
+            function handleMouseClick(event) {
+                var x = event.offsetX;
+                var y = event.offsetY;
+
+                // Check which country is clicked
+                data.features.forEach(function (feature) {
+                    ctx.beginPath();
+                    pathGenerator(feature);
+                    ctx.closePath();
+                    var isInside = ctx.isPointInPath(x, y);
+                    if (isInside) {
+                        var countryName = feature.properties.name.trim();
+                        displayCountryInfo(countryName, countryData, selectedYear);
+                    }
+                });
+            }
+
+            // Function to display country information
+            function displayCountryInfo(countryName, countryData, selectedYear) {
+                // Retrieve country data based on countryName from countryData object
+                var countryData = countryData[countryName];
+
+                var tableHTML = '<table><caption>' + countryName + '</caption><thead><tr><th>Company</th><th>' + selectedYear + 'Production</th></thead><tbody>';
+
+                var totalEarnings = 0;
+
+                // Iterate over each company data in the countryData object
+                for (var companyName in countryData) {
+                    if (countryData.hasOwnProperty(companyName)) {
+                        var production2011 = countryData[companyName][selectedYear] || 0; // Default to 0 if data for 2011 is not available
+                        totalEarnings += production2011;
+                        tableHTML += '<tr><td>' + companyName + '</td><td>' + production2011 + '</td></tr>';
+                    }
+                }
+
+                tableHTML += '</tbody></table>';
+
+                // Add total earnings row
+                tableHTML += '<div>Total Production (Tons in Millions): <span style="color: red;">' + totalEarnings + '</span></div>';
+                // Display the table on the right side of the page
+                var tableContainer = document.getElementById('company-table');
+                tableContainer.innerHTML = tableHTML;
+            }
+
+            // Initialize map with default year
+            updateMap(selectedYear);
+        });
+    </script>
+</body>
+
+</html>
