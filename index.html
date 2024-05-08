@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- Earnings used for the variable does not mean earnings, it is production in tonnage (millions) -->
 <html>
 
 <head>
@@ -179,28 +178,28 @@
 
         // Object to store company data by country
         var countryData = {};
-        var totalEarningsByCountry = {};
+        var totalProductionByCountry = {};
         var selectedYear = 2011;
 
-        // Function to calculate total earnings of each country by year
-        function calculateTotalEarningsByYear(csvData) {
+        // Function to calculate total Production of each country by year
+        function calculateTotalProductionByYear(csvData) {
             // Iterate over the CSV data
             csvData.forEach(function (d) {
                 var country = d["Headquarters"].trim();
                 var years = ["2011", "2012", "2013", "2014", "2015", "2016"]; // Assuming we start with 2011 Tonnage
                 if (country.length == 0) return;
-                // Check if the country exists in totalEarningsByCountry object
-                if (!(country in totalEarningsByCountry)) {
+                // Check if the country exists in totalProductionByCountry object
+                if (!(country in totalProductionByCountry)) {
                     // If not, initialize it as an empty object
-                    totalEarningsByCountry[country] = {};
+                    totalProductionByCountry[country] = {};
                 }
 
-                // Calculate total earnings for each year and store it in totalEarningsByCountry object
+                // Calculate total Production for each year and store it in totalProductionByCountry object
                 years.forEach(function (year) {
-                    if (typeof totalEarningsByCountry[country][year] !== 'number') {
-                        totalEarningsByCountry[country][year] = 0;
+                    if (typeof totalProductionByCountry[country][year] !== 'number') {
+                        totalProductionByCountry[country][year] = 0;
                     }
-                    totalEarningsByCountry[country][year] += parseFloat(d[year + " Tonnage (Millions)"]) || 0;
+                    totalProductionByCountry[country][year] += parseFloat(d[year + " Tonnage (Millions)"]) || 0;
                 });
             })
 
@@ -209,7 +208,7 @@
 
         d3.csv("data.csv", function (csvData) {
             // Process CSV data and store in countryData object
-            calculateTotalEarningsByYear(csvData);
+            calculateTotalProductionByYear(csvData);
             csvData.forEach(function (d) {
                 var country = d["Headquarters"].trim();
                 var companyName = d["Companies"];
@@ -247,33 +246,33 @@
         d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson", function (data) {
             // initialize the path
             var selectedYear = 2011;
-            console.log('totalEarningsByCountry: ', totalEarningsByCountry)
+            console.log('totalProductionByCountry: ', totalProductionByCountry)
 
-            var earningsForYear = [];
-            // Iterate over each country and extract earnings for the selected year
-            for (var country in totalEarningsByCountry) {
-                if (totalEarningsByCountry.hasOwnProperty(country)) {
+            var ProductionForYear = [];
+            // Iterate over each country and extract Production for the selected year
+            for (var country in totalProductionByCountry) {
+                if (totalProductionByCountry.hasOwnProperty(country)) {
 
 
-                    var earnings = totalEarningsByCountry[country][selectedYear];
-                    if (earnings !== undefined) {
-                        earningsForYear.push(earnings);
+                    var Production = totalProductionByCountry[country][selectedYear];
+                    if (Production !== undefined) {
+                        ProductionForYear.push(Production);
                     }
                 }
             }
 
-            console.log('earnign for year ', earningsForYear)
+            console.log('earnign for year ', ProductionForYear)
 
-            // Find minimum and maximum earnings for the selected year
-            var minEarnings = d3.min(earningsForYear);
-            var maxEarnings = d3.max(earningsForYear);
+            // Find minimum and maximum Production for the selected year
+            var minProduction = d3.min(ProductionForYear);
+            var maxProduction = d3.max(ProductionForYear);
 
 
-            console.log('maxEarnings ', maxEarnings);
+            console.log('maxProduction ', maxProduction);
 
             // Define color scale for the selected year
             var colorScale = d3.scaleLinear()
-                .domain([minEarnings, maxEarnings])
+                .domain([minProduction, maxProduction])
                 .range(["yellow", "red"]); // Adjust colors as needed
 
 
@@ -288,11 +287,11 @@
                 var countryName = feature.properties.name;
 
 
-                // Get total earnings for the selected year and country
-                var totalEarnings = totalEarningsByCountry[countryName] && totalEarningsByCountry[countryName][selectedYear] || 0;
+                // Get total Production for the selected year and country
+                var totalProduction = totalProductionByCountry[countryName] && totalProductionByCountry[countryName][selectedYear] || 0;
 
-                // Set fill color based on total earnings for the selected year
-                ctx.fillStyle = totalEarnings ? colorScale(totalEarnings) : "#ccc"; // Use default color for countries not in totalEarningsByCountry
+                // Set fill color based on total Production for the selected year
+                ctx.fillStyle = totalProduction ? colorScale(totalProduction) : "#ccc"; // Use default color for countries not in totalProductionByCountry
                 ctx.fill();
 
                 ctx.strokeStyle = "#69b3a2";
@@ -302,23 +301,23 @@
             // Function to update the map based on the selected year
             function updateMap(year) {
                 selectedYear = year;
-                // Iterate over each country and extract earnings for the selected year
-                earningsForYear = [];
-                for (var country in totalEarningsByCountry) {
-                    if (totalEarningsByCountry.hasOwnProperty(country)) {
-                        var earnings = totalEarningsByCountry[country][selectedYear];
-                        if (earnings !== undefined) {
-                            earningsForYear.push(earnings);
+                // Iterate over each country and extract Production for the selected year
+                ProductionForYear = [];
+                for (var country in totalProductionByCountry) {
+                    if (totalProductionByCountry.hasOwnProperty(country)) {
+                        var Production = totalProductionByCountry[country][selectedYear];
+                        if (Production !== undefined) {
+                            ProductionForYear.push(Production);
                         }
                     }
                 }
 
-                // Find minimum and maximum earnings for the selected year
-                minEarnings = d3.min(earningsForYear);
-                maxEarnings = d3.max(earningsForYear);
+                // Find minimum and maximum Production for the selected year
+                minProduction = d3.min(ProductionForYear);
+                maxProduction = d3.max(ProductionForYear);
 
                 // Update color scale
-                colorScale.domain([minEarnings, maxEarnings]);
+                colorScale.domain([minProduction, maxProduction]);
 
                 // Clear the canvas
                 ctx.clearRect(0, 0, width, height);
@@ -332,11 +331,11 @@
                     // Get country name
                     var countryName = feature.properties.name;
 
-                    // Get total earnings for the selected year and country
-                    var totalEarnings = totalEarningsByCountry[countryName] && totalEarningsByCountry[countryName][selectedYear] || 0;
+                    // Get total Production for the selected year and country
+                    var totalProduction = totalProductionByCountry[countryName] && totalProductionByCountry[countryName][selectedYear] || 0;
 
-                    // Set fill color based on total earnings for the selected year
-                    ctx.fillStyle = totalEarnings ? colorScale(totalEarnings) : "#ccc"; // Use default color for countries not in totalEarningsByCountry
+                    // Set fill color based on total Production for the selected year
+                    ctx.fillStyle = totalProduction ? colorScale(totalProduction) : "#ccc"; // Use default color for countries not in totalProductionByCountry
                     ctx.fill();
 
                     ctx.strokeStyle = "#69b3a2";
@@ -429,21 +428,21 @@
 
                 var tableHTML = '<table><caption>' + countryName + '</caption><thead><tr><th>Company</th><th>' + selectedYear + 'Production</th></thead><tbody>';
 
-                var totalEarnings = 0;
+                var totalProduction = 0;
 
                 // Iterate over each company data in the countryData object
                 for (var companyName in countryData) {
                     if (countryData.hasOwnProperty(companyName)) {
                         var production2011 = countryData[companyName][selectedYear] || 0; // Default to 0 if data for 2011 is not available
-                        totalEarnings += production2011;
+                        totalProduction += production2011;
                         tableHTML += '<tr><td>' + companyName + '</td><td>' + production2011 + '</td></tr>';
                     }
                 }
 
                 tableHTML += '</tbody></table>';
 
-                // Add total earnings row
-                tableHTML += '<div>Total Production (Tons in Millions): <span style="color: red;">' + totalEarnings + '</span></div>';
+                // Add total Production row
+                tableHTML += '<div>Total Production (Tons in Millions): <span style="color: red;">' + totalProduction + '</span></div>';
                 // Display the table on the right side of the page
                 var tableContainer = document.getElementById('company-table');
                 tableContainer.innerHTML = tableHTML;
